@@ -52,12 +52,14 @@ const addCloneRepo = async(nameRepo) => {
   const keysRepo = Object.keys(packageData.dependencies);
   console.log(keysRepo);
 
-  keysRepo.forEach(async(k) => {
+  console.log('1');
+  await Promise.all(keysRepo.map(async(k) => {
     const nameRepo = `${props['-ga']}/${k}`;
     if (await gitExistRepo(nameRepo)) {
       console.log('найден репозиторий', nameRepo);
     };
-  });
+  }));
+  console.log('2');
 
 };
 

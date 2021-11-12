@@ -8,6 +8,7 @@ const {
   mkdir,
   rmdir,
   readFileJSON,
+  writeFileJSON,
 } = require('./lib/fsp');
 const fsp = require('fs').promises;
 const path = require('path');
@@ -19,6 +20,8 @@ const pathDir = path.resolve(process.cwd(), props.appName);
 console.log('pathDir', pathDir);
 const nameRepoApp = `${props['-ga']}/${props['-ge']}`;
 const loadedRepo = [];
+
+const nameBranch = `${props['-ga']}_${props.appName}`;
 
 if (props.err) {
   console.error(props.err);
@@ -33,7 +36,7 @@ if (props.command === 'help') {
   process.exit(0);
 }
 
-const addCloneRepo = async(nameRepo) => {
+const addCloneRepoRecursion = async(nameRepo, pathDirRepo) => {
   if(loadedRepo.includes(nameRepo)) return;
 
   loadedRepo.push(nameRepo);
@@ -42,28 +45,39 @@ const addCloneRepo = async(nameRepo) => {
     return;
   };
   // TODO: сделать ветвь
-  
-  // читаем package.json и зависимости в нем
+  // проверяем есть ли ветвь во внешнем репозитории
+
+  // если есть во нешнем ветвь читаем ее и переходим на нее
+
+  // если внешней ветви нет - создаем локально и пушим во внешний репозиторий
+  // переходим на ветвь
 
   const packageData = await readFileJSON(
-    path.resolve(pathDir, props['-ge'], 'package.json')
+    path.resolve(pathDir, pathDirRepo, 'package.json')
   );
-  console.log(packageData.dependencies);
-  const keysRepo = Object.keys(packageData.dependencies);
-  console.log(keysRepo);
 
-  console.log('1');
+  if (!('dependencies' in packageData)) {
+    return;
+  };
+
+  const keysRepo = Object.keys(packageData.dependencies);
+
   await Promise.all(keysRepo.map(async(k) => {
-    const nameRepo = `${props['-ga']}/${k}`;
-    if (await gitExistRepo(nameRepo)) {
-      console.log('найден репозиторий', nameRepo);
+    const nameRepoDependencies = `${props['-ga']}/${k}`;
+    if (await gitExistRepo(nameRepoDependencies)) {
+      packageData.dependencies[k] = `${nameRepoDependencies}#${nameBranch}`;
+
+      if (!loadedRepo.includes(nameRepoDependencies)) {
+        await addCloneRepoRecursion(nameRepoDependencies, k);
+      };
     };
   }));
-  console.log('2');
-
+  await writeFileJSON(
+    path.resolve(pathDir, pathDirRepo, 'package.json'),
+    packageData,
+  );
 };
 
-console.log('props', props);
 const start = async() => {
   if (!await gitExistRepo(nameRepoApp)) {
     console.error(`Ошибка: Не найден репозиторий примера ${nameRepoApp}`);
@@ -80,15 +94,8 @@ const start = async() => {
     process.exit(1);
   };
 
-  await addCloneRepo(nameRepoApp);
-/*
-  if(!await gitCreateClone(nameRepo, {pathDir})) {
-    await rmdir(pathDir);
-    process.exit(1);
-  };
-*/
+  await addCloneRepoRecursion(nameRepoApp, props['-ge']);
 };
 
 start();
-//addCloneRepo(nameRepoApp);
 

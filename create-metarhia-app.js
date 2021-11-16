@@ -2,6 +2,8 @@
 
 // create-metarhia-app app003 -ga dmitryfokin -ge metarhia-example-workspace
 
+const fsp = require('fs').promises;
+const path = require('path');
 const { loadProps } = require('./lib/argv');
 const {
   access,
@@ -10,9 +12,14 @@ const {
   readFileJSON,
   writeFileJSON,
 } = require('./lib/fsp');
-const fsp = require('fs').promises;
-const path = require('path');
-const {gitCreateClone, gitExistRepo} = require('./lib/git');
+const {
+  gitCreateClone,
+  gitExistRepo,
+  gitChangeBranch,
+  gitAdd,
+  gitCommit,
+  gitPush,
+} = require('./lib/git');
 
 console.log('cwd', process.cwd());
 const props = loadProps();
@@ -41,16 +48,11 @@ const addCloneRepoRecursion = async(nameRepo, pathDirRepo) => {
 
   loadedRepo.push(nameRepo);
 
-  if(!await gitCreateClone(nameRepo, {pathDir})) {
+  if(!await gitCreateClone(nameRepo, pathDir)) {
     return;
   };
-  // TODO: сделать ветвь
-  // проверяем есть ли ветвь во внешнем репозитории
 
-  // если есть во нешнем ветвь читаем ее и переходим на нее
-
-  // если внешней ветви нет - создаем локально и пушим во внешний репозиторий
-  // переходим на ветвь
+  await gitChangeBranch(path.resolve(pathDir, pathDirRepo), nameBranch);
 
   const packageData = await readFileJSON(
     path.resolve(pathDir, pathDirRepo, 'package.json')
@@ -65,7 +67,9 @@ const addCloneRepoRecursion = async(nameRepo, pathDirRepo) => {
   await Promise.all(keysRepo.map(async(k) => {
     const nameRepoDependencies = `${props['-ga']}/${k}`;
     if (await gitExistRepo(nameRepoDependencies)) {
+      const pathRepoDependecies = path.resolve(pathDir, k);
       packageData.dependencies[k] = `${nameRepoDependencies}#${nameBranch}`;
+      //packageData.dependencies[k] = `file:${pathRepoDependecies}`;
 
       if (!loadedRepo.includes(nameRepoDependencies)) {
         await addCloneRepoRecursion(nameRepoDependencies, k);
@@ -76,6 +80,9 @@ const addCloneRepoRecursion = async(nameRepo, pathDirRepo) => {
     path.resolve(pathDir, pathDirRepo, 'package.json'),
     packageData,
   );
+  await gitAdd(path.resolve(pathDir, pathDirRepo), ['package.json']);
+  await gitCommit(path.resolve(pathDir, pathDirRepo), 'update package.json');
+  await gitPush(path.resolve(pathDir, pathDirRepo));
 };
 
 const start = async() => {

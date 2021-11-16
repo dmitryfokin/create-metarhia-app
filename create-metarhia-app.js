@@ -23,6 +23,15 @@ const {
 
 console.log('cwd', process.cwd());
 const props = loadProps();
+
+if (props.command === 'help') {
+    console.log(`Создание окружения Metarhia для разработки
+        create-metarhia-app appName -ga {gitHub accaunt} [-ge {repo example}]
+      `
+    );
+  process.exit(0);
+}
+
 const pathDir = path.resolve(process.cwd(), props.appName);
 console.log('pathDir', pathDir);
 const nameRepoApp = `${props['-ga']}/${props['-ge']}`;
@@ -33,14 +42,6 @@ const nameBranch = `${props['-ga']}_${props.appName}`;
 if (props.err) {
   console.error(props.err);
   process.exit(1);
-}
-
-if (props.command === 'help') {
-    console.log(`Создание окружения Metarhia для разработки
-        create-metarhia-app appName -ga {gitHub accaunt} [-ge {repo example}]
-      `
-    );
-  process.exit(0);
 }
 
 const addCloneRepoRecursion = async(nameRepo, pathDirRepo) => {
